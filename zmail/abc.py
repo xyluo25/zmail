@@ -55,7 +55,7 @@ class BaseServer(ABC):
             self.logout()
             return True
         except Exception as e:
-            self.log_exception('{} access error :{}'.format(self.__class__.__name__, e))
+            self.log_exception(f'{self.__class__.__name__} access error :{e}')
             return False
 
     def is_login(self) -> bool:
@@ -68,11 +68,9 @@ class BaseServer(ABC):
         self.log.fatal(msg)
 
     def log_access(self, msg):
-        self.log_debug('<{} {}:{} ssl:{} tls:{} is_login:{}> {}.'
-                       .format(self.__class__.__name__,
-                               self.host, self.port,
-                               self.ssl, self.tls,
-                               self.is_login(), msg))
+        self.log_debug(
+            f'<{self.__class__.__name__} {self.host}:{self.port} ssl:{self.ssl} tls:{self.tls} is_login:{self.is_login()}> {msg}.'
+        )
 
     def __enter__(self):
         self.login()
@@ -82,7 +80,4 @@ class BaseServer(ABC):
         self.logout()
 
     def __repr__(self):
-        return '<{} username:{} password:{} ' \
-               '{}:{} ssl:{} tls:{}>' \
-            .format(self.__class__.__name__, self.username, self.password,
-                    self.host, self.port, self.ssl, self.tls)
+        return f'<{self.__class__.__name__} username:{self.username} password:{self.password} {self.host}:{self.port} ssl:{self.ssl} tls:{self.tls}>'

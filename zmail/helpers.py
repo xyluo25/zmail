@@ -23,7 +23,7 @@ def convert_date_to_datetime(_date: str or datetime.datetime) -> datetime.dateti
     if _match_info is not None:
         year, month, day, hour, minute, second = [int(i) if i is not None else None for i in _match_info.groups()]
     else:
-        raise InvalidArguments('Invalid date format ' + str(_date))
+        raise InvalidArguments(f'Invalid date format {str(_date)}')
 
     if None in (year, month, day):
         now = datetime.datetime.now()
@@ -49,21 +49,23 @@ def match_conditions(mail_headers: CaseInsensitiveDict,
     mail_sender = mail_headers.get('from')  # type:str or None
     mail_date = mail_headers.get('date')  # type: datetime.datetime or None
 
-    if subject is not None:
-        if mail_subject is None or subject not in mail_subject:
-            return False
+    if subject is not None and (
+        mail_subject is None or subject not in mail_subject
+    ):
+        return False
 
-    if sender is not None:
-        if mail_sender is None or sender not in mail_sender:
-            return False
+    if sender is not None and (
+        mail_sender is None or sender not in mail_sender
+    ):
+        return False
 
-    if start_time is not None:
-        if mail_date is None or start_time > mail_date:
-            return False
+    if start_time is not None and (
+        mail_date is None or start_time > mail_date
+    ):
+        return False
 
-    if end_time is not None:
-        if mail_date is None or end_time < mail_date:
-            return False
+    if end_time is not None and (mail_date is None or end_time < mail_date):
+        return False
 
     return True
 
@@ -80,16 +82,18 @@ def get_intersection(main_range: tuple, sub_range: tuple) -> list:
     if sub_end is None or sub_end > main_end:
         sub_end = main_end
 
-    main_set = {i for i in range(main_start, main_end + 1)}
-    sub_set = {i for i in range(sub_start, sub_end + 1)}
+    main_set = set(range(main_start, main_end + 1))
+    sub_set = set(range(sub_start, sub_end + 1))
 
     return sorted(tuple((main_set & sub_set)))
 
 
 def encode_mail_header(s: str) -> str:
-    if not s:
-        return ''
-    return HDR_PREV + b64encode(s.encode('utf-8')).decode('ascii') + HDR_END
+    return (
+        HDR_PREV + b64encode(s.encode('utf-8')).decode('ascii') + HDR_END
+        if s
+        else ''
+    )
 
 
 def make_list(obj) -> list:
@@ -103,11 +107,14 @@ def make_address_header(address_list: list) -> str:
         if isinstance(address, tuple):
             assert len(address) == 2, 'Only two arguments!'
             name, rel_address = address
-            res.append(encode_mail_header(name) + ' ' + '<{}>'.format(rel_address))
+            res.append(f'{encode_mail_header(name)} ' + f'<{rel_address}>')
         elif isinstance(address, str):
-            res.append('<{}>'.format(address))
+            res.append(f'<{address}>')
         else:
-            raise InvalidArguments('Email address can only be tuple or str.Get {} instead.'.format(type(address)))
+            raise InvalidArguments(
+                f'Email address can only be tuple or str.Get {type(address)} instead.'
+            )
+
 
     return ', '.join(res)
 

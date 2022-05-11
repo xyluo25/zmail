@@ -144,7 +144,7 @@ def test_get_headers(pop_server: POPServer):
     with pop_server as server:
         total_num = server.stat()[0]
         if total_num >= 2:
-            which_list = list(range(1, 5 if total_num >= 5 else total_num))
+            which_list = list(range(1, min(total_num, 5)))
             headers = server.get_headers(which_list)
             assert isinstance(headers, list)
             for header in headers:
@@ -155,8 +155,7 @@ def test_get_headers(pop_server: POPServer):
 
 def test_get_mail(pop_server: POPServer):
     with pop_server as server:
-        total_num = server.stat()[0]
-        if total_num:
+        if total_num := server.stat()[0]:
             mail = server.get_mail(1)
             assert isinstance(mail, list)
             for i in mail:
@@ -167,7 +166,7 @@ def test_get_mails(pop_server: POPServer):
     with pop_server as server:
         total_num = server.stat()[0]
         if total_num >= 2:
-            which_list = list(range(1, 5 if total_num >= 5 else total_num))
+            which_list = list(range(1, min(total_num, 5)))
             mails = server.get_mails(which_list)
             assert isinstance(mails, list)
             for mail in mails:

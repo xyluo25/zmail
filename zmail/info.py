@@ -173,14 +173,13 @@ def get_supported_server_info(mail_address: str, config: Optional[str] = None) -
         if config in SUPPORTED_ENTERPRISE_SERVER_CONFIG:
             return SUPPORTED_ENTERPRISE_SERVER_CONFIG[config]
         else:
-            raise RuntimeError('Can not this config "{}".'.format(config))
+            raise RuntimeError(f'Can not this config "{config}".')
 
     if provider in SUPPORTED_SERVER:
         return SUPPORTED_SERVER[provider]
-    else:
-        # Return default configs.
-        config = DEFAULT_SERVER_CONFIG.copy()
-        config['smtp_host'] += provider
-        config['pop_host'] += provider
-        config['imap_host'] += provider
-        return config
+    # Return default configs.
+    config = DEFAULT_SERVER_CONFIG.copy()
+    config['smtp_host'] += provider
+    config['pop_host'] += provider
+    config['imap_host'] += provider
+    return config

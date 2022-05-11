@@ -24,7 +24,10 @@ class Mail:
         elif isinstance(mail, CaseInsensitiveDict):
             self.mail = mail
         else:
-            raise InvalidArguments('mail field excepted type dict or CaseInsensitiveDict got {}'.format(type(mail)))
+            raise InvalidArguments(
+                f'mail field excepted type dict or CaseInsensitiveDict got {type(mail)}'
+            )
+
 
         self.boundary = boundary
         self.debug = debug
@@ -41,18 +44,28 @@ class Mail:
                 if isinstance(v, str):
                     mime[_k.capitalize()] = v
                 else:
-                    raise InvalidArguments('{} can only be str! Got {} instead.'.format(_k.capitalize(), type(v)))
+                    raise InvalidArguments(
+                        f'{_k.capitalize()} can only be str! Got {type(v)} instead.'
+                    )
+
             elif _k == 'to':
                 if not self._is_resend_mail():
                     warnings.warn("Header 'to' is invalid and unused,if you want to add address name "
                                   "use tuple (address,name) instead.", category=DeprecationWarning, stacklevel=4)
-            elif _k in ('attachments', 'content_text', 'content_html', 'headers'):
-                pass
-            else:
+            elif _k not in (
+                'attachments',
+                'content_text',
+                'content_html',
+                'headers',
+            ):
                 if not self._is_resend_mail():
                     # Remove resend warnings.
-                    warnings.warn("Header '{}' is invalid and unused,if you want to add extra headers "
-                                  "use 'headers' instead.".format(str(_k)), category=DeprecationWarning, stacklevel=4)
+                    warnings.warn(
+                        f"Header '{str(_k)}' is invalid and unused,if you want to add extra headers use 'headers' instead.",
+                        category=DeprecationWarning,
+                        stacklevel=4,
+                    )
+
 
         # Set extra headers.
         if self.mail.get('headers') and isinstance(self.mail['headers'], dict):
@@ -63,13 +76,13 @@ class Mail:
         if self.mail.get('content_html') is not None:
             _htmls = make_list(self.mail['content_html'])
             for _html in _htmls:
-                mime.attach(MIMEText('{}'.format(_html), 'html', 'utf-8'))
+                mime.attach(MIMEText(f'{_html}', 'html', 'utf-8'))
 
         # Set TEXT content.
         if self.mail.get('content_text') is not None:
             _messages = make_list(self.mail['content_text'])
             for _message in _messages:
-                mime.attach(MIMEText('{}'.format(_message), 'plain', 'utf-8'))
+                mime.attach(MIMEText(f'{_message}', 'plain', 'utf-8'))
 
         # Set attachments.
         if self.mail.get('attachments'):
@@ -83,20 +96,21 @@ class Mail:
                     name, raw = attachment
                     part = MIMEBase('application', 'octet-stream')
                     part.set_payload(raw)
-                    part['Content-Disposition'] = 'attachment;filename="{}"'.format(name)
+                    part['Content-Disposition'] = f'attachment;filename="{name}"'
                     encode_base64(part)
                     mime.attach(part)
                 else:
-                    raise InvalidArguments('Attachments excepted str or tuple got {} instead.'.format(type(attachment)))
+                    raise InvalidArguments(
+                        f'Attachments excepted str or tuple got {type(attachment)} instead.'
+                    )
+
 
         self.mime = mime
 
     def set_mime_header(self, k, v) -> None:
-        if self.mime is not None:
-            self.mime[k] = v
-        else:
+        if self.mime is None:
             self.make_mine()
-            self.mime[k] = v
+        self.mime[k] = v
 
     def decode(self) -> CaseInsensitiveDict:
         if self.mime is None:
@@ -104,11 +118,9 @@ class Mail:
         return parse(self.mime.as_string().encode('utf-8').split(b'\n'))
 
     def get_mime_raw(self) -> MIMEMultipart:
-        if self.mime is not None:
-            return self.mime
-        else:
+        if self.mime is None:
             self.make_mine()
-            return self.mime
+        return self.mime
 
     def get_mime_as_string(self) -> str:
         return self.get_mime_raw().as_string()
@@ -117,9 +129,23 @@ class Mail:
         return self.get_mime_as_string().encode('utf-8').split(b'\n')
 
     def _is_resend_mail(self) -> bool:
-        return all([(i in self.mail) for i in
-                    ('from', 'to', 'subject', 'raw_headers', 'charsets', 'headers',
-                     'date', 'id', 'raw', 'attachments', 'content_text', 'content_html')])
+        return all(
+            i in self.mail
+            for i in (
+                'from',
+                'to',
+                'subject',
+                'raw_headers',
+                'charsets',
+                'headers',
+                'date',
+                'id',
+                'raw',
+                'attachments',
+                'content_text',
+                'content_html',
+            )
+        )
 
 
 def make_attachment_part(file_path) -> MIMEBase:
@@ -133,6 +159,6 @@ def make_attachment_part(file_path) -> MIMEBase:
     with open(file_path, 'rb') as f:
         part = MIMEBase(main_type, sub_type)
         part.set_payload(f.read())
-        part['Content-Disposition'] = 'attachment;filename="{}"'.format(encoded_name)
+        part['Content-Disposition'] = f'attachment;filename="{encoded_name}"'
         encode_base64(part)
     return part

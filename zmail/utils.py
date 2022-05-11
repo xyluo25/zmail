@@ -35,13 +35,14 @@ def show(mails: list or CaseInsensitiveDict) -> None:
         print('-------------------------')
         for k in ('subject', 'id', 'from', 'to', 'date', 'content_text', 'content_html', 'attachments'):
             if k != 'attachments':
-                print(k.capitalize() + ' ', mail.get(k))
+                print(f'{k.capitalize()} ', mail.get(k))
             else:
-                _ = ''
-                for idx, v in enumerate(mail['attachments']):
-                    _ += str(idx + 1) + '.' + 'Name:' + v[0] + ' ' + 'Size:' + str(len(v[1])) + ' '
+                _ = ''.join(
+                    f'{str(idx + 1)}.Name:{v[0]} Size:{len(v[1])} '
+                    for idx, v in enumerate(mail['attachments'])
+                )
 
-                print(k.capitalize() + ' ', _)
+                print(f'{k.capitalize()} ', _)
 
 
 def read_html(html_path: str):

@@ -44,7 +44,7 @@ def test_save_attachment(here):
         save_attachment(mock_mail, here, overwrite=True)  # No FileExistsError
         with pytest.raises(FileExistsError):
             save_attachment(mock_mail, here)
-    except (BaseException, Exception):
+    except BaseException:
         raise
     finally:
         with suppress(FileNotFoundError):
@@ -67,7 +67,7 @@ def test_save_and_read(accounts):
             saved_mail = read('_test.eml')
             saved_mail['id'] = mail.get('id')
             assert mail == saved_mail
-    except (BaseException, Exception):
+    except BaseException:
         raise
     finally:
         with suppress(FileNotFoundError):

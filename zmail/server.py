@@ -60,10 +60,16 @@ class MailServer:
 
         # Check arguments.
         if not isinstance(self.log, logging.Logger):
-            raise InvalidArguments('log excepted type logging.Logger got {}'.format(type(self.log)))
+            raise InvalidArguments(
+                f'log excepted type logging.Logger got {type(self.log)}'
+            )
+
 
         if not isinstance(self.timeout, (int, float)):
-            raise InvalidArguments('timeout excepted type int or float got {}'.format(type(self.timeout)))
+            raise InvalidArguments(
+                f'timeout excepted type int or float got {type(self.timeout)}'
+            )
+
 
         self.prepare()
 
@@ -110,7 +116,7 @@ class MailServer:
             _mail.set_mime_header('Cc', make_address_header(cc))
 
         # Remove tuple format in recipients.
-        recipients = [i if not isinstance(i, tuple) else i[1] for i in recipients]
+        recipients = [i[1] if isinstance(i, tuple) else i for i in recipients]
 
         with self.smtp_server as server:
             server.send(recipients, _mail,
@@ -139,25 +145,29 @@ class MailServer:
                   start_index: Optional[int] = None, end_index: Optional[int] = None) -> list:
         """Get a list of mails from mailbox."""
         headers = self.get_headers(start_index, end_index)
-        mail_id = []
-
         if start_time is not None:
             if isinstance(start_time, (datetime.datetime, str)):
                 start_time = convert_date_to_datetime(start_time)
             else:
                 raise InvalidArguments(
-                    'start_time excepted type str or datetime.datetime, got {} instead.'.format(type(start_time)))
+                    f'start_time excepted type str or datetime.datetime, got {type(start_time)} instead.'
+                )
+
 
         if end_time is not None:
             if isinstance(end_time, (datetime.datetime, str)):
                 end_time = convert_date_to_datetime(end_time)
             else:
                 raise InvalidArguments(
-                    'end_time excepted type str or datetime.datetime, got {} instead.'.format(type(end_time)))
+                    f'end_time excepted type str or datetime.datetime, got {type(end_time)} instead.'
+                )
 
-        for header in headers:
-            if match_conditions(header, subject, start_time, end_time, sender):
-                mail_id.append(header['id'])
+
+        mail_id = [
+            header['id']
+            for header in headers
+            if match_conditions(header, subject, start_time, end_time, sender)
+        ]
 
         with self.pop_server as server:
             mail_id.sort()
@@ -226,7 +236,7 @@ class SMTPServer(BaseServer):
 
     def login(self):
         if self._login:
-            self.log_exception('{} duplicate login!'.format(self.__repr__()))
+            self.log_exception(f'{self.__repr__()} duplicate login!')
             return
 
         if self.debug:
@@ -243,7 +253,7 @@ class SMTPServer(BaseServer):
 
     def logout(self):
         if not self._login:
-            self.log_exception('{} Logout before login!'.format(self.__repr__()))
+            self.log_exception(f'{self.__repr__()} Logout before login!')
             return
 
         if self.debug:
@@ -297,7 +307,7 @@ class POPServer(BaseServer):
     def login(self):
         """Note: the mailbox on the server is locked until logout() is called."""
         if self._login:
-            self.log_exception('{} duplicate login!'.format(self.__repr__()))
+            self.log_exception(f'{self.__repr__()} duplicate login!')
             return
 
         if self.debug:
@@ -316,7 +326,7 @@ class POPServer(BaseServer):
     def logout(self):
         """Quit and remove pop3 server."""
         if not self._login:
-            self.log_exception('{} Logout before login!'.format(self.__repr__()))
+            self.log_exception(f'{self.__repr__()} Logout before login!')
             return
 
         if self.debug:
@@ -346,11 +356,7 @@ class POPServer(BaseServer):
         num = self.stat()[0]
         result = []
 
-        if which_list is None:
-            _range = range(1, num + 1)
-        else:
-            _range = which_list
-
+        _range = range(1, num + 1) if which_list is None else which_list
         for count in _range:
             header_as_bytes = self.get_header(count)
             result.append(header_as_bytes)

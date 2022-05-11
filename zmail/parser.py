@@ -56,9 +56,9 @@ def recursive_decode(_bytes: bytes, encodings: list or tuple) -> str or None:
 def remove_line_feed_and_whitespace(_value: str):
     _value = _value.strip(HEADER_VALUE_STRIP)
 
-    while r'\r\n' == _value[:4]:
+    while _value.startswith(r'\r\n'):
         _value = _value[4:]
-    while r'\r\n' == _value[-4:]:
+    while _value[-4:] == r'\r\n':
         _value = _value[:-4]
 
     return _value
@@ -77,11 +77,10 @@ def parse_header_value(bvalue, encodings) -> str or None:
                     decoded_value += _value.decode(_charset)
                 except UnicodeDecodeError:
                     break
-            else:
-                if isinstance(_value, bytes):
-                    decoded_value += _value.decode('utf-8')
-                elif isinstance(_value, str):
-                    decoded_value += _value
+            elif isinstance(_value, bytes):
+                decoded_value += _value.decode('utf-8')
+            elif isinstance(_value, str):
+                decoded_value += _value
         return decoded_value
 
     return None
@@ -121,16 +120,13 @@ def fmt_date(date_as_string: str) -> datetime.datetime or None:
         tz = _fmt_date_tz(time_zone)
         return datetime.datetime(int(year), month, int(day),
                                  int(hour), int(minute), int(second), tzinfo=tz)
-    warnings.warn('Can not parse Date:{}'.format(date_as_string))
+    warnings.warn(f'Can not parse Date:{date_as_string}')
     return None
 
 
 def _get_sub_charset(raw_headers: list) -> list:
     """Hardcode for some invalid mail-encoding."""
-    for k, _ in raw_headers:
-        if b'X-QQ' in k:
-            return ['gbk']
-    return []
+    return next((['gbk'] for k, _ in raw_headers if b'X-QQ' in k), [])
 
 
 def parse_headers(lines: List[bytes], debug=False, log=None):
@@ -143,15 +139,13 @@ def parse_headers(lines: List[bytes], debug=False, log=None):
     line = lines[0]
     line_count = len(lines)
 
-    while lines:
-        if line in (b'', b'\r\n', b'\n'):
-            break
+    while lines and line not in (b'', b'\r\n', b'\n'):
         try:
             bname, bvalue = line.split(b':', 1)
         except ValueError:
-            raise ParseError('Invalid header:' + str(line))
+            raise ParseError(f'Invalid header:{str(line)}')
         except Exception as e:
-            raise ParseError('Unknown parse header error' + str(e))
+            raise ParseError(f'Unknown parse header error{str(e)}')
         bname = bname.strip(b' \t')
         bvalue = bvalue.lstrip()
 
@@ -164,20 +158,16 @@ def parse_headers(lines: List[bytes], debug=False, log=None):
             raw_headers.append((bname, bvalue))
             # Parse header.
             name = recursive_decode(bname, ('utf-8',))
-            if name is not None:
-                value = parse_header_value(bvalue, ('utf-8',))
-                if value is not None:
-                    headers[name] = value
-                else:
-                    unknown_value_headers.append((name, bvalue))
+            if name is None:
+                raise ParseError(f'Invalid header name {str(bname)}')
+            value = parse_header_value(bvalue, ('utf-8',))
+            if value is not None:
+                headers[name] = value
             else:
-                raise ParseError('Invalid header name {}'.format(str(bname)))
+                unknown_value_headers.append((name, bvalue))
             break
 
-        # consume continuation lines
-        continuation = line and line[0] in (32, 9)  # (' ', '\t')
-
-        if continuation:
+        if continuation := line and line[0] in (32, 9):
             bvalue = [bvalue]
             while continuation:
                 bvalue.append(line.strip(b' \t'))
@@ -195,15 +185,14 @@ def parse_headers(lines: List[bytes], debug=False, log=None):
         raw_headers.append((bname, bvalue))
         # Parse header.
         name = recursive_decode(bname, ('utf-8',))
-        if name is not None:
-            value = parse_header_value(bvalue, ('utf-8',))
-            if value is not None:
-                headers[name] = value
-            else:
-                unknown_value_headers.append((name, bvalue))
-        else:
-            raise ParseError('Invalid header {}'.format(str(bname)))
+        if name is None:
+            raise ParseError(f'Invalid header {str(bname)}')
 
+        value = parse_header_value(bvalue, ('utf-8',))
+        if value is not None:
+            headers[name] = value
+        else:
+            unknown_value_headers.append((name, bvalue))
     # Parse Content-Type
     try:
         content_type, *extra_pair = headers['content-type'].split(';')
@@ -211,7 +200,7 @@ def parse_headers(lines: List[bytes], debug=False, log=None):
         content_type = 'application/octet-stream'
         extra_pair = []
         if debug:
-            log.warning('Parse Content-Type error:{}'.format(str(e)))
+            log.warning(f'Parse Content-Type error:{str(e)}')
     main_type, sub_type = content_type.split('/')
 
     # Remove whitespace and get lower type.
@@ -228,16 +217,13 @@ def parse_headers(lines: List[bytes], debug=False, log=None):
                 extra_kv[_k] = _v
             except Exception as e:
                 if debug:
-                    log.warning('Extra key-value decode error:' + pair + 'reason' + str(e))
+                    log.warning(f'Extra key-value decode error:{pair}reason{str(e)}')
                 continue
 
     # Detect charsets
     charsets = []
     main_charset = extra_kv.get('charset')
-    if main_charset is None:
-        main_charset = 'utf-8'
-    else:
-        main_charset = main_charset.lower()
+    main_charset = 'utf-8' if main_charset is None else main_charset.lower()
     charsets.append(main_charset)
 
     sub_charset = _get_sub_charset(raw_headers)  # type:list
@@ -250,9 +236,8 @@ def parse_headers(lines: List[bytes], debug=False, log=None):
         value = recursive_decode(bvalue, charsets)
         if value is not None:
             headers[name] = value
-        else:
-            if debug:
-                logger.warning('Can not decode bytes-value' + str(bvalue))
+        elif debug:
+            logger.warning(f'Can not decode bytes-value{str(bvalue)}')
     # Parse Date and convert Date to DateTimeObject.
     if headers.get('date'):
         headers['date'] = fmt_date(headers['date'])
@@ -260,25 +245,26 @@ def parse_headers(lines: List[bytes], debug=False, log=None):
 
 
 def multiple_part_decode(lines: List[bytes], boundary: str, debug=False, log=None):
+    boundary = boundary.encode('ascii')
+    if not (
+        part_index := [
+            _idx for _idx, line in enumerate(lines) if boundary in line
+        ]
+    ):
+        raise ParseError(
+            f'Can not find boundary on this mail.boundary{boundary.decode("ascii")}'
+        )
+
+    _len = len(part_index)
+    parts = [
+        lines[idx + 1 : part_index[idx_idx + 1]]
+        for idx_idx, idx in enumerate(part_index)
+        if idx_idx + 1 <= _len - 1
+    ]
+
     content_text = []
     content_html = []
     attachments = []
-    boundary = boundary.encode('ascii')
-
-    # Split to parts.
-    parts = []
-    part_index = []
-    for _idx, line in enumerate(lines):
-        if boundary in line:
-            part_index.append(_idx)
-    if not part_index:
-        raise ParseError('Can not find boundary on this mail.boundary{}'.format(boundary.decode("ascii")))
-    else:
-        _len = len(part_index)
-        for idx_idx, idx in enumerate(part_index):
-            if idx_idx + 1 <= _len - 1:
-                parts.append(lines[idx + 1:part_index[idx_idx + 1]])
-
     for part in parts:
         parsed_part = parse(part, debug, log)  # Recursive call
         if parsed_part['content_text']:
@@ -318,28 +304,31 @@ def parse_one_part_body(headers: CaseInsensitiveDict, body: List[bytes], main_ty
                     _extra_kv[_k] = _v
                 except Exception as e:
                     if debug:
-                        log.warning('Can not decode Content-Disposition extra part:' + part + ' reason:' + str(e))
+                        log.warning(
+                            f'Can not decode Content-Disposition extra part:{part} reason:{str(e)}'
+                        )
+
                     continue
             filename = _extra_kv.get('filename')
             if filename is None and _extra_kv.get('filename*'):  # RFC5987 and ignore language tags
-                match = FILENAME_PATTERN.fullmatch(_extra_kv.get('filename*'))
-                if match:
+                if match := FILENAME_PATTERN.fullmatch(
+                    _extra_kv.get('filename*')
+                ):
                     _encoding, _language_tags, _name = match.groups()
                     filename = unquote(_name, _encoding)
         else:
             filename = None
         attachment_name = filename or extra_kv.get('name') or headers.get('subject') or 'Untitled'
         attachment = (attachment_name, raw_attachment)
-    # Is text/plain
     elif (main_type, sub_type) == TYPE_TEXT_PLAIN:
-        decoded_body = _decode_one_part_body(body, transfer_encoding, charsets)
-
-        if decoded_body:
+        if decoded_body := _decode_one_part_body(
+            body, transfer_encoding, charsets
+        ):
             content_text = decoded_body
-    # Is text/html
     elif (main_type, sub_type) == TYPE_TEXT_HTML:
-        decoded_body = _decode_one_part_body(body, transfer_encoding, charsets)
-        if decoded_body:
+        if decoded_body := _decode_one_part_body(
+            body, transfer_encoding, charsets
+        ):
             content_html = decoded_body
     else:  # All other type regard as attachment.
         raw_attachment = _decode_one_part_body(body, transfer_encoding, charsets, _need_decode=False)
@@ -356,12 +345,16 @@ def parse_one_part_body(headers: CaseInsensitiveDict, body: List[bytes], main_ty
                     _extra_kv[_k] = _v
                 except Exception as e:
                     if debug:
-                        log.warning('Can not decode Content-Disposition extra part:' + part + ' reason:' + str(e))
+                        log.warning(
+                            f'Can not decode Content-Disposition extra part:{part} reason:{str(e)}'
+                        )
+
                     continue
             filename = _extra_kv.get('filename')
             if filename is None and _extra_kv.get('filename*'):  # RFC5987 and ignore language tags
-                match = FILENAME_PATTERN.fullmatch(_extra_kv.get('filename*'))
-                if match:
+                if match := FILENAME_PATTERN.fullmatch(
+                    _extra_kv.get('filename*')
+                ):
                     _encoding, _language_tags, _name = match.groups()
                     filename = unquote(_name, _encoding)
         else:
@@ -386,13 +379,13 @@ def _decode_one_part_body(lines: List[bytes], transfer_encoding: str, charsets: 
             return recursive_decode(decoded_bytes, charsets)
         else:
             return decoded_bytes
-    elif transfer_encoding in ('binary', '8bit', '7bit'):
+    elif transfer_encoding in {'binary', '8bit', '7bit'}:
         if _need_decode:
             return recursive_decode(b'\r\n'.join(lines), charsets)
         else:
             return b'\r\n'.join(lines)
     else:
-        raise ParseError('Invalid transfer-encoding {}'.format(transfer_encoding))
+        raise ParseError(f'Invalid transfer-encoding {transfer_encoding}')
 
 
 def parse(lines: List[bytes], debug=False, log=None) -> CaseInsensitiveDict:

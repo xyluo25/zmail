@@ -35,7 +35,7 @@ def test_supported_server():
 
 def test_get_supported_server_info():
     for k in SUPPORTED_SERVER:
-        assert get_supported_server_info('zmailtest@' + k), SUPPORTED_SERVER[k]
+        assert get_supported_server_info(f'zmailtest@{k}'), SUPPORTED_SERVER[k]
 
 
 def test_get_supported_server_info_as_enterprise_server():
